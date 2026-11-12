@@ -1,68 +1,74 @@
 import { expect, test } from "vitest";
-import { nextAutoScroll } from "@/components/dashboard/docker/logs/utils";
+import {
+	isNearBottom,
+	scrolledUp,
+} from "@/components/dashboard/docker/logs/utils";
 
-test("enables auto-scroll at the bottom", () => {
+test("detects the bottom", () => {
 	expect(
-		nextAutoScroll(false, {
-			scrollTop: 400,
-			scrollHeight: 1000,
-			clientHeight: 600,
-			previousScrollTop: 0,
-		}),
+		isNearBottom({ scrollTop: 500, scrollHeight: 1000, clientHeight: 500 }),
 	).toBe(true);
 });
 
-test("keeps auto-scroll enabled for a stale event after content growth", () => {
+test("detects positions within ten pixels of the bottom", () => {
 	expect(
-		nextAutoScroll(true, {
-			scrollTop: 400,
-			scrollHeight: 1400,
-			clientHeight: 600,
-			previousScrollTop: 400,
-		}),
+		isNearBottom({ scrollTop: 491, scrollHeight: 1000, clientHeight: 500 }),
 	).toBe(true);
 });
 
-test("keeps auto-scroll enabled while the scroll position increases", () => {
+test("rejects positions beyond ten pixels of the bottom", () => {
 	expect(
-		nextAutoScroll(true, {
-			scrollTop: 500,
-			scrollHeight: 1400,
-			clientHeight: 600,
-			previousScrollTop: 400,
-		}),
-	).toBe(true);
-});
-
-test("disables auto-scroll when the scroll position decreases", () => {
-	expect(
-		nextAutoScroll(true, {
-			scrollTop: 300,
-			scrollHeight: 1400,
-			clientHeight: 600,
-			previousScrollTop: 400,
-		}),
+		isNearBottom({ scrollTop: 489, scrollHeight: 1000, clientHeight: 500 }),
 	).toBe(false);
 });
 
-test("keeps auto-scroll disabled while scrolling down toward the bottom", () => {
+test("rejects a stale position after content grows", () => {
 	expect(
-		nextAutoScroll(false, {
-			scrollTop: 500,
-			scrollHeight: 1400,
-			clientHeight: 600,
-			previousScrollTop: 400,
-		}),
+		isNearBottom({ scrollTop: 500, scrollHeight: 1500, clientHeight: 500 }),
 	).toBe(false);
 });
 
-test("enables auto-scroll within ten pixels of the bottom", () => {
+test("detects upward movement at the same content height", () => {
 	expect(
-		nextAutoScroll(false, {
-			scrollTop: 391,
-			scrollHeight: 1000,
-			clientHeight: 600,
-			previousScrollTop: 400,
-		}),
+		scrolledUp(
+			{ scrollTop: 300, scrollHeight: 1000 },
+			{ scrollTop: 400, scrollHeight: 1000 },
+		),
 	).toBe(true);
+});
+
+test("detects upward movement while content grows", () => {
+	expect(
+		scrolledUp(
+			{ scrollTop: 300, scrollHeight: 1100 },
+			{ scrollTop: 400, scrollHeight: 1000 },
+		),
+	).toBe(true);
+});
+
+test("ignores upward movement while content shrinks", () => {
+	expect(
+		scrolledUp(
+			{ scrollTop: 101274, scrollHeight: 102568 },
+			{ scrollTop: 165498, scrollHeight: 166216 },
+		),
+	).toBe(false);
+});
+
+test("ignores an unchanged scroll position", () => {
+	expect(
+		scrolledUp(
+			{ scrollTop: 400, scrollHeight: 1000 },
+			{ scrollTop: 400, scrollHeight: 1000 },
+		),
+	).toBe(false);
+});
+
+test("ignores downward movement", () => {
+	expect(
+		scrolledUp(
+			{ scrollTop: 500, scrollHeight: 1000 },
+			{ scrollTop: 400, scrollHeight: 1000 },
+		),
+	).toBe(false);
 });

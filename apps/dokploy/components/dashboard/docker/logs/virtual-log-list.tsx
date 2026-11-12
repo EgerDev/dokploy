@@ -1,8 +1,16 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+	type KeyboardEvent,
+	type ReactNode,
+	type TouchEvent,
+	useEffect,
+	useRef,
+	useState,
+	type WheelEvent,
+} from "react";
 import { cn } from "@/lib/utils";
 import { TerminalLine } from "./terminal-line";
-import { type LogLine, nextAutoScroll } from "./utils";
+import { isNearBottom, type LogLine, scrolledUp } from "./utils";
 
 const VERTICAL_PADDING = 16;
 // Above this, render only visible rows; below it, keep every row in the DOM so Ctrl+F works.
@@ -25,6 +33,9 @@ export const VirtualLogList = ({
 }: Props) => {
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const lastScrollTop = useRef(0);
+	const lastScrollHeight = useRef(0);
+	const awaitingLeave = useRef(false);
+	const touchStartY = useRef<number | null>(null);
 	const [autoScroll, setAutoScroll] = useState(true);
 	const virtualize = logs.length > VIRTUALIZE_THRESHOLD;
 
@@ -44,16 +55,65 @@ export const VirtualLogList = ({
 		if (!scrollRef.current) return;
 
 		const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-		const previousScrollTop = lastScrollTop.current;
+		const previous = {
+			scrollTop: lastScrollTop.current,
+			scrollHeight: lastScrollHeight.current,
+		};
 		lastScrollTop.current = scrollTop;
-		setAutoScroll((current) =>
-			nextAutoScroll(current, {
-				scrollTop,
-				scrollHeight,
-				clientHeight,
-				previousScrollTop,
-			}),
-		);
+		lastScrollHeight.current = scrollHeight;
+		const nearBottom = isNearBottom({ scrollTop, scrollHeight, clientHeight });
+		if (awaitingLeave.current) {
+			if (!nearBottom) awaitingLeave.current = false;
+		} else if (nearBottom) {
+			setAutoScroll(true);
+		} else if (
+			// A shrinking scrollHeight reflects the virtualize switch or a reset, not user intent.
+			scrolledUp({ scrollTop, scrollHeight }, previous)
+		) {
+			setAutoScroll(false);
+		}
+	};
+
+	const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
+		if (event.deltaY < 0) {
+			awaitingLeave.current = true;
+			setAutoScroll(false);
+			return;
+		}
+
+		const element = scrollRef.current;
+		if (
+			event.deltaY > 0 &&
+			element &&
+			element.scrollHeight - element.scrollTop - element.clientHeight <=
+				event.deltaY + 10
+		) {
+			awaitingLeave.current = false;
+			setAutoScroll(true);
+		}
+	};
+
+	const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+		if (["ArrowUp", "PageUp", "Home"].includes(event.key)) {
+			awaitingLeave.current = true;
+			setAutoScroll(false);
+		} else if (event.key === "End") {
+			awaitingLeave.current = false;
+			setAutoScroll(true);
+		}
+	};
+
+	const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+		touchStartY.current = event.touches[0]?.clientY ?? null;
+	};
+
+	const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+		const startY = touchStartY.current;
+		const clientY = event.touches[0]?.clientY;
+		if (startY !== null && clientY !== undefined && clientY > startY) {
+			awaitingLeave.current = true;
+			setAutoScroll(false);
+		}
 	};
 
 	useEffect(() => {
@@ -69,6 +129,10 @@ export const VirtualLogList = ({
 		<div
 			ref={scrollRef}
 			onScroll={handleScroll}
+			onWheel={handleWheel}
+			onKeyDown={handleKeyDown}
+			onTouchStart={handleTouchStart}
+			onTouchMove={handleTouchMove}
 			className={cn(
 				"overflow-y-auto border rounded custom-logs-scrollbar",
 				virtualize ? "px-4" : "p-4",

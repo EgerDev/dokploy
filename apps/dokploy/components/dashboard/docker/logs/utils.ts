@@ -7,24 +7,22 @@ export interface LogLine {
 	message: string;
 }
 
-export const nextAutoScroll = (
-	current: boolean,
-	{
-		scrollTop,
-		scrollHeight,
-		clientHeight,
-		previousScrollTop,
-	}: {
-		scrollTop: number;
-		scrollHeight: number;
-		clientHeight: number;
-		previousScrollTop: number;
-	},
-): boolean => {
-	if (Math.abs(scrollHeight - scrollTop - clientHeight) < 10) return true;
-	if (scrollTop < previousScrollTop) return false;
-	return current;
-};
+export const isNearBottom = ({
+	scrollTop,
+	scrollHeight,
+	clientHeight,
+}: {
+	scrollTop: number;
+	scrollHeight: number;
+	clientHeight: number;
+}) => Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
+
+export const scrolledUp = (
+	current: { scrollTop: number; scrollHeight: number },
+	previous: { scrollTop: number; scrollHeight: number },
+) =>
+	current.scrollTop < previous.scrollTop &&
+	current.scrollHeight >= previous.scrollHeight;
 
 interface ContainerOption {
 	containerId: string;
