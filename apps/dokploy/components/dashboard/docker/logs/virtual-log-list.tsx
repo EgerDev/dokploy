@@ -2,7 +2,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { TerminalLine } from "./terminal-line";
-import type { LogLine } from "./utils";
+import { type LogLine, nextAutoScroll } from "./utils";
 
 const VERTICAL_PADDING = 16;
 // Above this, render only visible rows; below it, keep every row in the DOM so Ctrl+F works.
@@ -24,6 +24,7 @@ export const VirtualLogList = ({
 	children,
 }: Props) => {
 	const scrollRef = useRef<HTMLDivElement>(null);
+	const lastScrollTop = useRef(0);
 	const [autoScroll, setAutoScroll] = useState(true);
 	const virtualize = logs.length > VIRTUALIZE_THRESHOLD;
 
@@ -43,8 +44,16 @@ export const VirtualLogList = ({
 		if (!scrollRef.current) return;
 
 		const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-		const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
-		setAutoScroll(isAtBottom);
+		const previousScrollTop = lastScrollTop.current;
+		lastScrollTop.current = scrollTop;
+		setAutoScroll((current) =>
+			nextAutoScroll(current, {
+				scrollTop,
+				scrollHeight,
+				clientHeight,
+				previousScrollTop,
+			}),
+		);
 	};
 
 	useEffect(() => {
