@@ -118,7 +118,16 @@ export const ShowDeployment = ({
 				}
 			}}
 		>
-			<DialogContent className={"sm:max-w-5xl"}>
+			<DialogContent
+				className={"sm:max-w-5xl"}
+				onOpenAutoFocus={(event) => {
+					// The focusable log viewport would otherwise take initial focus from the Close button.
+					event.preventDefault();
+					(event.currentTarget as HTMLElement | null)
+						?.querySelector<HTMLElement>('[data-slot="dialog-close"]')
+						?.focus();
+				}}
+			>
 				<DialogHeader>
 					<DialogTitle>Deployment</DialogTitle>
 					<DialogDescription className="flex items-center gap-2">

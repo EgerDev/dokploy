@@ -23,7 +23,16 @@ export const DrawerLogs = ({ isOpen, onClose, filteredLogs }: Props) => {
 				onClose();
 			}}
 		>
-			<SheetContent className="w-full sm:max-w-[740px]! flex flex-col">
+			<SheetContent
+				className="w-full sm:max-w-[740px]! flex flex-col"
+				onOpenAutoFocus={(event) => {
+					// The focusable log viewport would otherwise take initial focus from the Close button.
+					event.preventDefault();
+					(event.currentTarget as HTMLElement | null)
+						?.querySelector<HTMLElement>('[data-slot="sheet-close"]')
+						?.focus();
+				}}
+			>
 				<SheetHeader>
 					<SheetTitle>Deployment Logs</SheetTitle>
 					<SheetDescription>Details of the request log entry.</SheetDescription>
