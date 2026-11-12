@@ -51,6 +51,15 @@ export const VirtualLogList = ({
 		scrollPaddingEnd: VERTICAL_PADDING,
 	});
 
+	const stopFollowing = () => {
+		if (!scrollRef.current || scrollRef.current.scrollTop <= 0) {
+			// At the top, input can't produce the scroll event that would clear the latch.
+			return;
+		}
+		awaitingLeave.current = true;
+		setAutoScroll(false);
+	};
+
 	const handleScroll = () => {
 		if (!scrollRef.current) return;
 
@@ -76,8 +85,7 @@ export const VirtualLogList = ({
 
 	const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
 		if (event.deltaY < 0) {
-			awaitingLeave.current = true;
-			setAutoScroll(false);
+			stopFollowing();
 			return;
 		}
 
@@ -95,8 +103,7 @@ export const VirtualLogList = ({
 
 	const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
 		if (["ArrowUp", "PageUp", "Home"].includes(event.key)) {
-			awaitingLeave.current = true;
-			setAutoScroll(false);
+			stopFollowing();
 		} else if (event.key === "End") {
 			awaitingLeave.current = false;
 			setAutoScroll(true);
@@ -111,8 +118,7 @@ export const VirtualLogList = ({
 		const startY = touchStartY.current;
 		const clientY = event.touches[0]?.clientY;
 		if (startY !== null && clientY !== undefined && clientY > startY) {
-			awaitingLeave.current = true;
-			setAutoScroll(false);
+			stopFollowing();
 		}
 	};
 
@@ -127,6 +133,8 @@ export const VirtualLogList = ({
 
 	return (
 		<div
+			// biome-ignore lint/a11y/noNoninteractiveTabindex: The log viewport must receive keyboard scroll input.
+			tabIndex={0}
 			ref={scrollRef}
 			onScroll={handleScroll}
 			onWheel={handleWheel}
