@@ -36,7 +36,12 @@ export const VirtualLogList = ({
 	const lastScrollHeight = useRef(0);
 	const awaitingLeave = useRef(false);
 	const touchStartY = useRef<number | null>(null);
+	const following = useRef(true);
 	const [autoScroll, setAutoScroll] = useState(true);
+	const setFollowing = (value: boolean) => {
+		following.current = value;
+		setAutoScroll(value);
+	};
 	const virtualize = logs.length > VIRTUALIZE_THRESHOLD;
 
 	const virtualizer = useVirtualizer({
@@ -56,8 +61,9 @@ export const VirtualLogList = ({
 			// At the top, input can't produce the scroll event that would clear the latch.
 			return;
 		}
+		virtualizer.cancelScroll();
 		awaitingLeave.current = true;
-		setAutoScroll(false);
+		setFollowing(false);
 	};
 
 	const handleScroll = () => {
@@ -74,12 +80,12 @@ export const VirtualLogList = ({
 		if (awaitingLeave.current) {
 			if (!nearBottom) awaitingLeave.current = false;
 		} else if (nearBottom) {
-			setAutoScroll(true);
+			setFollowing(true);
 		} else if (
 			// A shrinking scrollHeight reflects the virtualize switch or a reset, not user intent.
 			scrolledUp({ scrollTop, scrollHeight }, previous)
 		) {
-			setAutoScroll(false);
+			setFollowing(false);
 		}
 	};
 
@@ -97,7 +103,7 @@ export const VirtualLogList = ({
 				event.deltaY + 10
 		) {
 			awaitingLeave.current = false;
-			setAutoScroll(true);
+			setFollowing(true);
 		}
 	};
 
@@ -106,7 +112,7 @@ export const VirtualLogList = ({
 			stopFollowing();
 		} else if (event.key === "End") {
 			awaitingLeave.current = false;
-			setAutoScroll(true);
+			setFollowing(true);
 		}
 	};
 
@@ -123,7 +129,8 @@ export const VirtualLogList = ({
 	};
 
 	useEffect(() => {
-		if (!autoScroll || logs.length === 0) return;
+		// The ref, not state: input can land between a commit and this effect.
+		if (!following.current || logs.length === 0) return;
 		if (virtualize) {
 			virtualizer.scrollToIndex(logs.length - 1, { align: "end" });
 		} else if (scrollRef.current) {
